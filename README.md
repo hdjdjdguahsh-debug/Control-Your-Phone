@@ -1,47 +1,109 @@
-# Control Your Phone 2.0
+# Control Your Phone
 
-Android utility project using Java, Material 3 UI, and Shizuku for optional Android shell access.
+**Current version: `v0.9` — development build**
 
-## Features
-- Live device overview: manufacturer/model, Android/API level, CPU ABI, RAM, battery percentage/status/temperature/health, and app-data volume storage.
-- Refreshable diagnostics.
-- Read-only shell diagnostic shortcuts (\x60getprop\x60, \x60dumpsys battery\x60, thermal service summary, and display service summary).
-- Shizuku binder and permission status with permission request.
-- Shell command runner with merged output, bounded output, and a 20-second timeout.
-- Shortcuts to this app's Android settings, general display settings, battery settings, and wireless debugging settings where available.
-- Installed-app list based on packages visible to the app.
-- Material 3 interface.
-- GitHub Actions workflow to build and upload a debug APK.
+Control Your Phone is a Java-based Android utility project focused on device information, diagnostics, and practical device-management tools. The project is still under development, so features and compatibility may change as bugs are fixed and testing improves.
 
-## Requirements
-- Android device.
-- Java 17 and Android SDK for local builds.
-- Shizuku installed and running for Shizuku-backed features.
+> **Project status:** experimental. Do not treat this version as a stable release. Back up important data before testing any feature that could affect your device.
+
+## What works in the current project
+
+The current codebase includes the following features, subject to Android version and device limitations:
+
+- Device overview: manufacturer/model, Android/API level, CPU ABI, RAM, battery information, and app-data storage.
+- Refreshable device diagnostics.
+- Read-only shell diagnostic shortcuts for selected system properties, battery, thermal, and display information.
+- Shizuku status and permission UI for features that use it.
+- A shell command runner with output limits and a timeout.
+- Shortcuts to relevant Android settings, where available.
+- Installed-app listing based on packages visible to the app.
+- Crash-reporting UI and a GitHub Actions workflow for building a debug APK.
+
+Some privileged features may not work on every device or build. The project is actively being revised; the planned move away from Shizuku is not complete in the current codebase.
+
+## Next update: v1.0 — Phase 1
+
+This section shows **only the next planned phase**. It is a target, not a promise that these features are already implemented. Items will be marked complete only after implementation and testing.
+
+- [ ] Improve the main dashboard and overall UI.
+- [ ] Add a One-Tap Health Check that summarizes available device diagnostics.
+- [ ] Improve system monitoring for CPU, RAM, battery, temperature, and storage where Android exposes the data.
+- [ ] Add battery-focused diagnostics and practical recommendations based on available data.
+- [ ] Add storage analysis with safe, user-confirmed cleanup suggestions.
+- [ ] Design and validate a standalone Wireless ADB connection manager to replace the current Shizuku-dependent approach where feasible.
+- [ ] Run regression, stability, compatibility, and UI tests before calling the phase complete.
+
+### Roadmap privacy
+
+Only the upcoming phase is shown here. Later plans will be revealed gradually as the project version advances, so this README does not publish the full long-term roadmap.
+
+## Versioning policy
+
+The current development version is **v0.9**.
+
+- `v0.9 → v1.0`: first milestone after Phase 1 is implemented and passes its required checks.
+- `v1.0 → v1.1 → v1.2 → ...`: subsequent updates are released incrementally after their changes are tested.
+- Larger milestone numbers are not assigned automatically just because a phase ends. Version numbers are updated deliberately, based on the actual release.
+
+A successful APK build alone does not mean a release is stable. Known critical bugs, security issues, data-loss risks, and failed required tests must block a release.
+
+## Quality goals
+
+Before a version is considered ready, the project aims to check:
+
+- Clean builds and relevant automated tests.
+- App startup, navigation, loading/error states, and common UI sizes.
+- Behavior when permissions are denied, data is unavailable, or a connection drops.
+- Regression of existing features.
+- Backup and destructive-operation safeguards where applicable.
+- Compatibility on supported Android versions and real devices.
+
+No software can be honestly guaranteed to be completely bug-free. Compatibility and test results should be documented rather than assumed.
+
+## Requirements for local builds
+
+- Android device or emulator.
+- Java 17 and Android SDK.
+- Gradle 8.7 and Android Gradle Plugin 8.6.1, as configured by the project.
+- Shizuku installed and running for current Shizuku-backed features.
 
 ## Build locally
-The project uses Gradle 8.7 and Android Gradle Plugin 8.6.1. If Gradle is installed, run:
 
-\x60\x60\x60bash
+Run from the repository root:
+
+```bash
 gradle --no-daemon assembleDebug
-\x60\x60\x60
+```
 
-The debug APK should be generated at \x60app/build/outputs/apk/debug/app-debug.apk\x60.
+The debug APK should be generated at:
 
-## Build APK with GitHub Actions
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Build with GitHub Actions
+
 1. Open the repository's **Actions** tab.
 2. Select **Build Control Your Phone APK**.
-3. Choose **Run workflow**, or push a commit to \x60main\x60.
-4. Wait for the run to finish successfully.
-5. Download the \x60ControlYourPhone-debug-APK\x60 artifact from the run.
+3. Run the workflow or push a commit to `main`.
+4. Wait for the workflow to finish.
+5. Download the debug APK artifact from the successful run.
 
-A successful build has not been confirmed until the workflow reports success.
+A build is considered successful only when the workflow reports success. Test the resulting APK on a suitable device before relying on it.
 
-## Compatibility and safety notes
-- Shizuku shell is **not root**. Some commands or privileged operations will be denied by Android, OS versions, or device-manufacturer restrictions.
-- The shell command box can run commands as Android's shell identity after Shizuku permission is granted. Review commands before running them; destructive commands can damage data or settings. Prefer the built-in read-only diagnostics.
-- Package visibility and app-list completeness can vary by Android version and policy.
-- Android 11+ usually supports starting Shizuku using Wireless debugging. See https://shizuku.rikka.app/ for official instructions.
-- This app does not claim to change CPU governors, GPU drivers, FPS caps, or thermal limits where Android/vendor policy does not permit it.
+## Compatibility and safety
 
-## Build status
-This project has not been compiled or tested on a physical device in this environment. Check GitHub Actions for the authoritative build result.
+- Shizuku shell access is **not root**. Android and device-manufacturer restrictions may deny commands or operations.
+- Shell commands can affect device data and settings. Prefer built-in read-only diagnostics, and do not run commands unless you understand their effects.
+- App visibility and diagnostic data vary by Android version, manufacturer, and permissions.
+- Wireless debugging and ADB behavior depend on the device and Android version. ADB access does not grant root privileges.
+- Bootloader unlocking and root are not universal capabilities and can cause data loss or device problems. Any future support must be device-specific, clearly explained, and tested.
+- The app does not claim to modify CPU governors, GPU drivers, FPS caps, or thermal limits where Android or the manufacturer does not permit it.
+
+## Contributing and bug reports
+
+Bug reports are welcome. Include the app version, Android version, device model, steps to reproduce, expected behavior, actual behavior, and relevant redacted logs. **Do not post passwords, authentication tokens, personal files, or other sensitive data.**
+
+---
+
+This README describes the current repository and the next planned phase; planned features should not be interpreted as already available.
