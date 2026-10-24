@@ -85,6 +85,9 @@ public class MainActivity extends Activity {
                 }
             }
         } catch (Throwable e) {
+            try {
+                ((CrashLoggingApplication) getApplication()).saveCrashReport(Thread.currentThread(), e);
+            } catch (Throwable ignored) { }
             showStartupError(e);
         }
     }
@@ -164,15 +167,52 @@ public class MainActivity extends Activity {
 
     private void showStartupError(Throwable error) {
         try {
+            LinearLayout fallback = new LinearLayout(this);
+            fallback.setOrientation(LinearLayout.VERTICAL);
+            fallback.setPadding(dp(20), dp(24), dp(20), dp(24));
+
+            TextView heading = new TextView(this);
+            heading.setText("Control Your Phone could not start");
+            heading.setTextSize(20);
+            heading.setTypeface(null, android.graphics.Typeface.BOLD);
+            fallback.addView(heading);
+
+            String report = CrashLoggingApplication.readLastCrash(this);
+            String details = error.getClass().getName() + "\n" + String.valueOf(error.getMessage());
             TextView message = new TextView(this);
-            message.setText("Control Your Phone could not start.\n\n"
-                    + error.getClass().getName() + "\n"
-                    + String.valueOf(error.getMessage()));
+            message.setText(details + (report == null ? "" : "\n\n--- SAVED CRASH REPORT ---\n" + report));
             message.setTextIsSelectable(true);
-            message.setTextSize(15);
-            message.setPadding(dp(20), dp(24), dp(20), dp(24));
-            setContentView(message);
-        } catch (Throwable ignored) { }
+            message.setTextSize(13);
+            LinearLayout.LayoutParams messageLp = params(-1, -2);
+            messageLp.topMargin = dp(12);
+            fallback.addView(message, messageLp);
+
+            if (report != null && !report.trim().isEmpty()) {
+                LinearLayout.LayoutParams copyLp = params(-1, -2);
+                copyLp.topMargin = dp(12);
+                fallback.addView(action("Copy full crash report", v -> {
+                    try {
+                        ClipboardManager clipboard =
+                                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                        if (clipboard != null) {
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Control Your Phone crash report", report));
+                            toast("Crash report copied. Paste it into this chat.");
+                        }
+                    } catch (Throwable copyError) {
+                        toast("Copy failed: " + copyError.getClass().getSimpleName());
+                    }
+                }), copyLp);
+            }
+            setContentView(fallback);
+        } catch (Throwable fallbackError) {
+            try {
+                TextView message = new TextView(this);
+                message.setText("Startup error: " + error.getClass().getName()
+                        + "\n" + String.valueOf(error.getMessage()));
+                message.setTextIsSelectable(true);
+                setContentView(message);
+            } catch (Throwable ignored) { }
+        }
     }
 
     @Override protected void onDestroy() {
