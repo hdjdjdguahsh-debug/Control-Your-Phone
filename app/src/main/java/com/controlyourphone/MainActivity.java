@@ -2,6 +2,8 @@ package com.controlyourphone;
 
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -67,6 +69,7 @@ public class MainActivity extends Activity {
             // Keep the main screen usable even if optional integrations fail.
             try { DynamicColors.applyToActivityIfAvailable(this); } catch (Throwable ignored) { }
             buildUi();
+            showPreviousCrashReport();
             refreshDeviceInfo();
 
             // Shizuku is optional: never let a stopped/missing service prevent launch.
@@ -78,7 +81,7 @@ public class MainActivity extends Activity {
             } catch (Throwable e) {
                 if (shizukuText != null) {
                     shizukuText.setText("Shizuku integration unavailable: "
-                            + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : "\\n" + e.getMessage()));
+                            + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : "\n" + e.getMessage()));
                 }
             }
         } catch (Throwable e) {
@@ -86,11 +89,84 @@ public class MainActivity extends Activity {
         }
     }
 
+    private View crashReportCard;
+
+    /**
+     * Shows the last uncaught crash on the next launch so the report can be
+     * copied and shared without a computer, ADB, or a separate log viewer.
+     */
+    private void showPreviousCrashReport() {
+        final String report = CrashLoggingApplication.readLastCrash(this);
+        if (report == null || report.trim().isEmpty() || content == null) return;
+
+        MaterialCardView card = new MaterialCardView(this);
+        crashReportCard = card;
+        card.setRadius(dp(20));
+        card.setCardBackgroundColor(0xFFFFF4F2);
+        card.setStrokeColor(0xFFDF8B82);
+        card.setStrokeWidth(dp(1));
+        card.setCardElevation(dp(1));
+        card.setUseCompatPadding(true);
+
+        LinearLayout.LayoutParams cardLp = params(-1, -2);
+        cardLp.topMargin = dp(12);
+        content.addView(card, Math.min(3, content.getChildCount()));
+
+        LinearLayout inside = new LinearLayout(this);
+        inside.setOrientation(LinearLayout.VERTICAL);
+        inside.setPadding(dp(16), dp(15), dp(16), dp(16));
+        card.addView(inside);
+
+        inside.addView(label("PREVIOUS CRASH CAPTURED", 12, 0xFFB42318, true));
+        TextView explanation = label(
+                "Copy this report and paste it into the chat to identify the failing class and line.",
+                13, muted, false);
+        LinearLayout.LayoutParams explanationLp = params(-1, -2);
+        explanationLp.topMargin = dp(8);
+        inside.addView(explanation, explanationLp);
+
+        String preview = report.length() > 4200
+                ? report.substring(0, 4200) + "\n\n[Preview truncated. Use Copy full crash report for the complete log.]"
+                : report;
+        TextView reportText = label(preview, 11, ink, false);
+        reportText.setTextIsSelectable(true);
+        reportText.setMaxLines(36);
+        LinearLayout.LayoutParams reportLp = params(-1, -2);
+        reportLp.topMargin = dp(10);
+        inside.addView(reportText, reportLp);
+
+        LinearLayout.LayoutParams copyLp = params(-1, -2);
+        copyLp.topMargin = dp(10);
+        inside.addView(action("Copy full crash report", v -> {
+            try {
+                ClipboardManager clipboard =
+                        (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard == null) {
+                    toast("Clipboard is unavailable.");
+                    return;
+                }
+                clipboard.setPrimaryClip(ClipData.newPlainText("Control Your Phone crash report", report));
+                toast("Crash report copied. Paste it into this chat.");
+            } catch (Throwable copyError) {
+                toast("Could not copy report: " + copyError.getClass().getSimpleName());
+            }
+        }), copyLp);
+
+        LinearLayout.LayoutParams clearLp = params(-1, -2);
+        clearLp.topMargin = dp(6);
+        inside.addView(action("Clear crash report", v -> {
+            CrashLoggingApplication.clearLastCrash(this);
+            if (crashReportCard != null && content != null) content.removeView(crashReportCard);
+            crashReportCard = null;
+            toast("Crash report cleared.");
+        }), clearLp);
+    }
+
     private void showStartupError(Throwable error) {
         try {
             TextView message = new TextView(this);
-            message.setText("Control Your Phone could not start.\\n\\n"
-                    + error.getClass().getName() + "\\n"
+            message.setText("Control Your Phone could not start.\n\n"
+                    + error.getClass().getName() + "\n"
                     + String.valueOf(error.getMessage()));
             message.setTextIsSelectable(true);
             message.setTextSize(15);
