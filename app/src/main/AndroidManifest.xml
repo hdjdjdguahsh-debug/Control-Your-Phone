@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <application
+        android:name=".CrashLoggingApplication"
         android:allowBackup="false"
         android:label="Control Your Phone"
         android:theme="@style/AppTheme"
