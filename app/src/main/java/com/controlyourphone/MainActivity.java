@@ -218,7 +218,9 @@ public class MainActivity extends Activity {
         executor.execute(() -> {
             String result; Process process = null;
             try {
-                process = Shizuku.newProcess(new String[]{"sh", "-c", "(" + command + ") 2>&1"}, null, null);
+                java.lang.reflect.Method processMethod = Shizuku.class.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
+                processMethod.setAccessible(true);
+                process = (Process) processMethod.invoke(null, new String[]{"sh", "-c", "(" + command + ") 2>&1"}, null, null);
                 final Process active = process;
                 FutureTask<String> readerTask = new FutureTask<>(() -> {
                     StringBuilder out = new StringBuilder();
