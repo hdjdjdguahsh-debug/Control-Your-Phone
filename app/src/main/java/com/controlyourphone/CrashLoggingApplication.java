@@ -44,7 +44,7 @@ public class CrashLoggingApplication extends Application {
         });
     }
 
-    private void saveCrashReport(Thread thread, Throwable error) {
+    public void saveCrashReport(Thread thread, Throwable error) {
         try {
             File file = new File(getFilesDir(), CRASH_FILE);
             try (PrintWriter writer = new PrintWriter(
