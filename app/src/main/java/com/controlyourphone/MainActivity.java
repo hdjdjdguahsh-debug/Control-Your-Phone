@@ -63,20 +63,47 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        DynamicColors.applyToActivityIfAvailable(this);
-        Shizuku.addRequestPermissionResultListener(permissionListener);
-        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener);
-        Shizuku.addBinderDeadListener(binderDeadListener);
-        buildUi();
-        refreshDeviceInfo();
-        refreshShizukuStatus();
+        try {
+            // Keep the main screen usable even if optional integrations fail.
+            try { DynamicColors.applyToActivityIfAvailable(this); } catch (Throwable ignored) { }
+            buildUi();
+            refreshDeviceInfo();
+
+            // Shizuku is optional: never let a stopped/missing service prevent launch.
+            try {
+                Shizuku.addRequestPermissionResultListener(permissionListener);
+                Shizuku.addBinderReceivedListenerSticky(binderReceivedListener);
+                Shizuku.addBinderDeadListener(binderDeadListener);
+                refreshShizukuStatus();
+            } catch (Throwable e) {
+                if (shizukuText != null) {
+                    shizukuText.setText("Shizuku integration unavailable: "
+                            + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : "\\n" + e.getMessage()));
+                }
+            }
+        } catch (Throwable e) {
+            showStartupError(e);
+        }
+    }
+
+    private void showStartupError(Throwable error) {
+        try {
+            TextView message = new TextView(this);
+            message.setText("Control Your Phone could not start.\\n\\n"
+                    + error.getClass().getName() + "\\n"
+                    + String.valueOf(error.getMessage()));
+            message.setTextIsSelectable(true);
+            message.setTextSize(15);
+            message.setPadding(dp(20), dp(24), dp(20), dp(24));
+            setContentView(message);
+        } catch (Throwable ignored) { }
     }
 
     @Override protected void onDestroy() {
         destroyed = true;
-        Shizuku.removeRequestPermissionResultListener(permissionListener);
-        Shizuku.removeBinderReceivedListener(binderReceivedListener);
-        Shizuku.removeBinderDeadListener(binderDeadListener);
+        try { Shizuku.removeRequestPermissionResultListener(permissionListener); } catch (Throwable ignored) { }
+        try { Shizuku.removeBinderReceivedListener(binderReceivedListener); } catch (Throwable ignored) { }
+        try { Shizuku.removeBinderDeadListener(binderDeadListener); } catch (Throwable ignored) { }
         executor.shutdownNow();
         super.onDestroy();
     }
