@@ -30,7 +30,13 @@ This section shows **only the next planned phase**. It is a target, not a promis
 - [ ] Improve system monitoring for CPU, RAM, battery, temperature, and storage where Android exposes the data.
 - [ ] Add battery-focused diagnostics and practical recommendations based on available data.
 - [ ] Add storage analysis with safe, user-confirmed cleanup suggestions.
-- [ ] Design and validate a standalone Wireless ADB connection manager to replace the current Shizuku-dependent approach where feasible.
+- [ ] Add Network Detective checks for connectivity and latency, plus packet-loss checks where feasible.
+- [ ] Add Smart Diagnostic Report export and Diagnostic History.
+- [ ] Add Storage Cleanup Preview and Performance Session Recorder.
+- [ ] Add reviewed ADB Command Presets with clear explanations and safeguards.
+- [ ] Design and validate a standalone Wireless ADB client/session manager to replace the current Shizuku-dependent approach where feasible.
+- [ ] Fix known stability and functionality issues before adding more scope: investigate the startup crash seen in an earlier build; resolve the Shizuku-provider/initialization issue without leaving dependent features broken; and restore or clearly handle Battery Diagnostics, App Diagnostics, and Shell Command functionality.
+- [ ] Harden permission-denied, missing-data, timeout, empty-output, and dropped-ADB-connection handling.
 - [ ] Run regression, stability, compatibility, and UI tests before calling the phase complete.
 
 ### Roadmap privacy
@@ -45,7 +51,7 @@ The current development version is **v0.9**.
 - `v1.0 → v1.1 → v1.2 → ...`: subsequent updates are released incrementally after their changes are tested.
 - Larger milestone numbers are not assigned automatically just because a phase ends. Version numbers are updated deliberately, based on the actual release.
 
-A successful APK build alone does not mean a release is stable. Known critical bugs, security issues, data-loss risks, and failed required tests must block a release.
+A successful APK build alone does not mean a release is stable. For `v0.9 → v1.0`, bug fixing is part of Phase 1—not a later optional task. Known critical bugs, security issues, data-loss risks, broken existing features, and failed required tests must block a release. The earlier working build used as a baseline should be retained for comparison until its replacement is tested.
 
 ## Quality goals
 
