@@ -22,6 +22,7 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.text.TextUtils;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
@@ -358,8 +359,8 @@ public class MainActivity extends Activity {
             for (String finding : findings) report.append("- ").append(finding).append('\n');
             report.append("\nLimitations: This is a basic indicator check, not a malware scan or a full hardware diagnostic. Storage figures refer to the app-data volume.\n");
             pendingDiagnosticReport = report.toString();
-            healthText.setText("Status: " + status + "\n" + (warnings.isEmpty() ? "No warning indicators found in available checks." : String.join("\n", warnings))
-                    + (findings.isEmpty() ? "" : "\n\n" + String.join("\n", findings)));
+            healthText.setText("Status: " + status + "\n" + (warnings.isEmpty() ? "No warning indicators found in available checks." : TextUtils.join("\n", warnings))
+                    + (findings.isEmpty() ? "" : "\n\n" + TextUtils.join("\n", findings)));
             saveDiagnosticHistory(status + " — " + warnings.size() + " warning(s)");
             refreshDiagnosticHistory();
         } catch (Throwable e) {
