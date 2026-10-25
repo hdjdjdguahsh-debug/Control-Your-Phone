@@ -22,6 +22,13 @@ public class CrashReportActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        String report = CrashLoggingApplication.readLastCrash(this);
+        if (report == null || report.trim().isEmpty()) {
+            // Keep crash diagnostics available without forcing every normal launch through an extra screen.
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+            return;
+        }
         showReportScreen();
     }
 
