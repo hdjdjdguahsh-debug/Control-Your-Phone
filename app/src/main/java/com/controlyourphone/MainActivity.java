@@ -11,6 +11,9 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,6 +37,10 @@ import com.google.android.material.textfield.TextInputEditText;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -46,11 +53,14 @@ import rikka.shizuku.Shizuku;
 
 public class MainActivity extends Activity {
     private static final int SHIZUKU_REQUEST_CODE = 4917;
+    private static final int CREATE_REPORT_REQUEST = 4918;
     private final int ink = 0xFF17243A, muted = 0xFF59677D, blue = 0xFF315DA8, page = 0xFFF4F6FA;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private LinearLayout content;
     private TextView deviceText, memoryText, batteryText, storageText, shizukuText, outputText, appListText;
+    private TextView healthText, networkText, historyText;
+    private String pendingDiagnosticReport = "";
     private TextInputEditText commandInput;
     private boolean destroyed = false;
 
@@ -243,6 +253,21 @@ public class MainActivity extends Activity {
         addCard("DEVICE OVERVIEW", deviceText, memoryText, batteryText, storageText,
                 action("Refresh information", v -> refreshDeviceInfo()));
 
+        healthText = label("Run a check to summarize available device indicators.", 14, ink, false);
+        addCard("ONE-TAP HEALTH CHECK", healthText,
+                action("Run health check", v -> runHealthCheck()),
+                action("Export diagnostic report", v -> exportDiagnosticReport()));
+
+        networkText = label("Network test has not run yet.", 14, ink, false);
+        addCard("NETWORK DETECTIVE", networkText,
+                action("Check network and latency", v -> runNetworkCheck()));
+
+        historyText = label("No diagnostic history yet.", 13, ink, false);
+        addCard("DIAGNOSTIC HISTORY", historyText,
+                action("Refresh history", v -> refreshDiagnosticHistory()),
+                action("Clear history", v -> { getSharedPreferences("diagnostics", MODE_PRIVATE).edit().remove("history").apply(); refreshDiagnosticHistory(); toast("Diagnostic history cleared."); }));
+        refreshDiagnosticHistory();
+
         shizukuText = label("", 14, ink, false);
         addCard("SHIZUKU ACCESS", shizukuText,
                 action("Request / check permission", v -> requestShizukuPermission()),
@@ -276,10 +301,157 @@ public class MainActivity extends Activity {
         appListText = label("", 13, ink, false);
         addCard("APP INVENTORY", label("Shows packages visible to this application. Android privacy rules may hide some apps.", 13, muted, false),
                 action("Load installed apps", v -> loadInstalledApps()), appListText);
-        TextView footer = label("Control Your Phone 2.0 • Material 3 • No fake optimization switches", 12, muted, false);
+        TextView footer = label("Control Your Phone v1.0 • Diagnostics first, no fake optimization switches", 12, muted, false);
         footer.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams footerLp = params(-1, -2); footerLp.topMargin = dp(24); content.addView(footer, footerLp);
         setContentView(scroll);
+    }
+
+    private void runHealthCheck() {
+        if (healthText == null) return;
+        try {
+            refreshDeviceInfo();
+            List<String> findings = new java.util.ArrayList<>();
+            List<String> warnings = new java.util.ArrayList<>();
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            if (am != null) {
+                am.getMemoryInfo(mi);
+                if (mi.lowMemory) warnings.add("Android reports low available memory.");
+                else findings.add("Memory pressure: no low-memory warning reported.");
+            } else warnings.add("Memory information is unavailable.");
+
+            Intent battery = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            if (battery != null) {
+                int level = battery.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                int scale = battery.getIntExtra(BatteryManager.EXTRA_SCALE, 100);
+                int pct = level >= 0 && scale > 0 ? level * 100 / scale : -1;
+                int temp = battery.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
+                if (pct >= 0 && pct < 20) warnings.add("Battery is below 20% (" + pct + "%).");
+                else if (pct >= 20) findings.add("Battery level: " + pct + "%.");
+                else warnings.add("Battery level is unavailable.");
+                if (temp >= 500) warnings.add("Battery temperature is high (" + String.format(Locale.US, "%.1f °C", temp / 10.0) + ").");
+                else if (temp >= 0) findings.add("Battery temperature: " + String.format(Locale.US, "%.1f °C", temp / 10.0) + ".");
+            } else warnings.add("Battery information is unavailable.");
+
+            StatFs stat = new StatFs(getFilesDir().getAbsolutePath());
+            long total = stat.getTotalBytes();
+            long available = stat.getAvailableBytes();
+            if (total > 0) {
+                int freePct = (int) Math.min(100, (available * 100L) / total);
+                if (freePct < 10) warnings.add("App-data volume has less than 10% free space (" + freePct + "%).");
+                else findings.add("App-data volume free space: " + freePct + "%.");
+            } else warnings.add("Storage information is unavailable.");
+
+            String status = warnings.isEmpty() ? "OK" : "WARNING";
+            StringBuilder report = new StringBuilder();
+            report.append("Control Your Phone — Diagnostic Report\n");
+            report.append("Time: ").append(new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(new java.util.Date())).append('\n');
+            report.append("App version: ").append(getPackageManager().getPackageInfo(getPackageName(), 0).versionName).append('\n');
+            report.append("Device: ").append(safe(Build.MANUFACTURER)).append(' ').append(safe(Build.MODEL)).append('\n');
+            report.append("Android: ").append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append(")\n");
+            report.append("Health status: ").append(status).append("\n\n");
+            report.append("Warnings:\n");
+            if (warnings.isEmpty()) report.append("- No warning indicators found in the checks available to this app.\n");
+            else for (String warning : warnings) report.append("- ").append(warning).append('\n');
+            report.append("\nFindings:\n");
+            for (String finding : findings) report.append("- ").append(finding).append('\n');
+            report.append("\nLimitations: This is a basic indicator check, not a malware scan or a full hardware diagnostic. Storage figures refer to the app-data volume.\n");
+            pendingDiagnosticReport = report.toString();
+            healthText.setText("Status: " + status + "\n" + (warnings.isEmpty() ? "No warning indicators found in available checks." : String.join("\n", warnings))
+                    + (findings.isEmpty() ? "" : "\n\n" + String.join("\n", findings)));
+            saveDiagnosticHistory(status + " — " + warnings.size() + " warning(s)");
+            refreshDiagnosticHistory();
+        } catch (Throwable e) {
+            healthText.setText("Health check could not finish: " + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()));
+        }
+    }
+
+    private void saveDiagnosticHistory(String entry) {
+        try {
+            android.content.SharedPreferences prefs = getSharedPreferences("diagnostics", MODE_PRIVATE);
+            String old = prefs.getString("history", "");
+            String timestamp = new java.text.SimpleDateFormat("MM-dd HH:mm", Locale.US).format(new java.util.Date());
+            String next = timestamp + "  " + entry + (old == null || old.isEmpty() ? "" : "\n" + old);
+            String[] lines = next.split("\\n");
+            StringBuilder limited = new StringBuilder();
+            for (int i = 0; i < Math.min(lines.length, 10); i++) {
+                if (i > 0) limited.append('\n');
+                limited.append(lines[i]);
+            }
+            prefs.edit().putString("history", limited.toString()).apply();
+        } catch (Throwable ignored) { }
+    }
+
+    private void refreshDiagnosticHistory() {
+        if (historyText == null) return;
+        String history = getSharedPreferences("diagnostics", MODE_PRIVATE).getString("history", "");
+        historyText.setText(history == null || history.trim().isEmpty() ? "No diagnostic history yet." : history);
+    }
+
+    private void exportDiagnosticReport() {
+        if (pendingDiagnosticReport == null || pendingDiagnosticReport.trim().isEmpty()) runHealthCheck();
+        if (pendingDiagnosticReport == null || pendingDiagnosticReport.trim().isEmpty()) {
+            toast("Run the health check first.");
+            return;
+        }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "control-your-phone-diagnostic.txt");
+        try { startActivityForResult(intent, CREATE_REPORT_REQUEST); }
+        catch (Throwable e) { toast("Could not open file picker: " + e.getClass().getSimpleName()); }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != CREATE_REPORT_REQUEST || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        try (OutputStream stream = getContentResolver().openOutputStream(data.getData());
+             OutputStreamWriter writer = stream == null ? null : new OutputStreamWriter(stream, java.nio.charset.StandardCharsets.UTF_8)) {
+            if (writer == null) { toast("Could not open the selected file."); return; }
+            writer.write(pendingDiagnosticReport);
+            writer.flush();
+            toast("Diagnostic report exported.");
+        } catch (Throwable e) {
+            toast("Report export failed: " + e.getClass().getSimpleName());
+        }
+    }
+
+    private void runNetworkCheck() {
+        if (networkText == null) return;
+        networkText.setText("Checking network status and TCP connection latency…");
+        executor.execute(() -> {
+            String result;
+            try {
+                ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                Network active = cm == null ? null : cm.getActiveNetwork();
+                NetworkCapabilities caps = active == null || cm == null ? null : cm.getNetworkCapabilities(active);
+                if (caps == null || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
+                    result = "No active network with internet capability was reported by Android. This does not prove whether the Wi-Fi router itself is working.";
+                } else {
+                    String transport = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ? "Wi-Fi"
+                            : caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ? "Cellular"
+                            : caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) ? "Ethernet" : "Other";
+                    long started = System.nanoTime();
+                    try (Socket socket = new Socket()) {
+                        socket.connect(new InetSocketAddress("connectivitycheck.gstatic.com", 443), 4000);
+                        long ms = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+                        result = "Network: " + transport + "\nInternet capability: reported by Android\nTCP connect latency to connectivitycheck.gstatic.com: " + ms + " ms\nNote: this is a single TCP connection test, not a full speed test.";
+                    } catch (Throwable e) {
+                        result = "Network: " + transport + "\nAndroid reports internet capability, but the TCP test failed: " + e.getClass().getSimpleName() + ". The network may block the test host or internet access.";
+                    }
+                }
+            } catch (Throwable e) {
+                result = "Network check failed: " + e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage());
+            }
+            final String finalResult = result;
+            main.post(() -> {
+                if (!destroyed && networkText != null) networkText.setText(finalResult);
+                if (!destroyed) saveDiagnosticHistory("Network check completed");
+                refreshDiagnosticHistory();
+            });
+        });
     }
 
     private void refreshDeviceInfo() {
