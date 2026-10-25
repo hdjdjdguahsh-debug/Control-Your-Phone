@@ -1,8 +1,8 @@
 # Control Your Phone
 
-**Current version: `v0.9` — development build**
+**Current build: `v1.0.0-rc1` — release candidate, not a final release**
 
-Control Your Phone is a Java-based Android utility project focused on device information, diagnostics, and practical device-management tools. The project is still under development, so features and compatibility may change as bugs are fixed and testing improves.
+Control Your Phone is a Java-based Android utility project focused on device information, diagnostics, and practical device-management tools. This release candidate adds an initial health check, a basic network connectivity/latency check, local diagnostic history, and diagnostic report export. It still needs on-device regression testing before the stable v1.0 release.
 
 > **Project status:** experimental. Do not treat this version as a stable release. Back up important data before testing any feature that could affect your device.
 
@@ -17,25 +17,28 @@ The current codebase includes the following features, subject to Android version
 - A shell command runner with output limits and a timeout.
 - Shortcuts to relevant Android settings, where available.
 - Installed-app listing based on packages visible to the app.
+- One-Tap Health Check for basic memory, battery, and app-data-volume indicators; it is not a malware scan or full hardware diagnosis.
+- Network Detective for Android-reported network capability and a single TCP connection-latency test.
+- Local diagnostic history (last 10 entries) and export of the current health report to a user-selected text file.
 - Crash-reporting UI and a GitHub Actions workflow for building a debug APK.
 
-Some privileged features may not work on every device or build. The project is actively being revised; the planned move away from Shizuku is not complete in the current codebase.
+Some privileged features may not work on every device or build. The Shizuku provider is currently disabled while the earlier startup issue is investigated; Shizuku-backed shell and permission features must be treated as unavailable until the provider issue is fixed and tested. The planned move away from Shizuku is not complete.
 
-## Next update: v1.0 — Phase 1
+## Remaining work for stable v1.0 — Phase 1
 
-This section shows **only the next planned phase**. It is a target, not a promise that these features are already implemented. Items will be marked complete only after implementation and testing.
+This section shows **only the current phase target**. The current build is a release candidate, not the stable v1.0 release. Items will be marked complete only after implementation and testing.
 
 - [ ] Improve the main dashboard and overall UI.
-- [ ] Add a One-Tap Health Check that summarizes available device diagnostics.
+- [x] Add an initial One-Tap Health Check for available basic indicators (limited scope; see above).
 - [ ] Improve system monitoring for CPU, RAM, battery, temperature, and storage where Android exposes the data.
 - [ ] Add battery-focused diagnostics and practical recommendations based on available data.
 - [ ] Add storage analysis with safe, user-confirmed cleanup suggestions.
-- [ ] Add Network Detective checks for connectivity and latency, plus packet-loss checks where feasible.
-- [ ] Add Smart Diagnostic Report export and Diagnostic History.
+- [x] Add a basic Network Detective connectivity/latency check. Packet-loss diagnostics remain unimplemented.
+- [x] Add basic diagnostic report export and local Diagnostic History.
 - [ ] Add Storage Cleanup Preview and Performance Session Recorder.
 - [ ] Add reviewed ADB Command Presets with clear explanations and safeguards.
 - [ ] Design and validate a standalone Wireless ADB client/session manager to replace the current Shizuku-dependent approach where feasible.
-- [ ] Fix known stability and functionality issues before adding more scope: investigate the startup crash seen in an earlier build; resolve the Shizuku-provider/initialization issue without leaving dependent features broken; and restore or clearly handle Battery Diagnostics, App Diagnostics, and Shell Command functionality.
+- [ ] Fix known stability and functionality issues before stable v1.0: investigate the startup crash seen in an earlier build; resolve the Shizuku-provider/initialization issue without leaving dependent features broken; and restore or clearly handle Battery Diagnostics, App Diagnostics, and Shell Command functionality.
 - [ ] Harden permission-denied, missing-data, timeout, empty-output, and dropped-ADB-connection handling.
 - [ ] Run regression, stability, compatibility, and UI tests before calling the phase complete.
 
@@ -45,13 +48,13 @@ Only the upcoming phase is shown here. Later plans will be revealed gradually as
 
 ## Versioning policy
 
-The current development version is **v0.9**.
+The current code is a **`v1.0.0-rc1` release candidate**, not a stable release.
 
-- `v0.9 → v1.0`: first milestone after Phase 1 is implemented and passes its required checks.
+- `v0.9 → v1.0`: stable v1.0 is released only after Phase 1 is implemented and passes its required checks.
 - `v1.0 → v1.1 → v1.2 → ...`: subsequent updates are released incrementally after their changes are tested.
 - Larger milestone numbers are not assigned automatically just because a phase ends. Version numbers are updated deliberately, based on the actual release.
 
-A successful APK build alone does not mean a release is stable. For `v0.9 → v1.0`, bug fixing is part of Phase 1—not a later optional task. Known critical bugs, security issues, data-loss risks, broken existing features, and failed required tests must block a release. The earlier working build used as a baseline should be retained for comparison until its replacement is tested.
+A successful APK build alone does not mean a release is stable. For `v0.9 → v1.0`, bug fixing is part of Phase 1—not a later optional task. The `v1.0.0-rc1` artifact is for testing and is not the final stable release. Known critical bugs, security issues, data-loss risks, broken existing features, and failed required tests must block a release. The earlier working build used as a baseline should be retained for comparison until its replacement is tested.
 
 ## Quality goals
 
